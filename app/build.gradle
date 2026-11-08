@@ -26,6 +26,9 @@ dependencies {
 
     // This dependency is used by the application.
     implementation libs.guava
+
+    // mapy
+    implementation 'org.jxmapviewer:jxmapviewer2:2.8.1'
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
