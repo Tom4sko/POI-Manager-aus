@@ -1,14 +1,16 @@
-
 package com.example.semestralka2.service;
 
 import com.example.semestralka2.Point;
 import com.example.semestralka2.SpatialTree;
 import com.example.semestralka2.model.POI;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class POIService {
 
@@ -16,6 +18,12 @@ public class POIService {
 
     private SpatialTree<Double, POI> spatialTree;
     private TreeType currentTreeType;
+
+    // Približné geografické hranice Slovenska.
+    private static final double MIN_LATITUDE = 47.7;
+    private static final double MAX_LATITUDE = 49.6;
+    private static final double MIN_LONGITUDE = 16.8;
+    private static final double MAX_LONGITUDE = 22.6;
 
     public POIService() {
         pois = new ArrayList<>();
@@ -44,6 +52,42 @@ public class POIService {
         pois.clear();
         pois.addAll(newPois);
         rebuildTree();
+    }
+
+    // Generovanie náhodných POI v geografickom rozsahu Slovenska.
+
+    public void generateRandomPOIs(int count) {
+
+        if (count < 1 || count > 100000) {
+            throw new IllegalArgumentException(
+                    "Počet generovaných bodov musí byť od 1 do 100 000."
+            );
+        }
+
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+
+        for (int i = 0; i < count; i++) {
+
+            double latitude = random.nextDouble(
+                    MIN_LATITUDE,
+                    MAX_LATITUDE
+            );
+
+            double longitude = random.nextDouble(
+                    MIN_LONGITUDE,
+                    MAX_LONGITUDE
+            );
+
+            POI poi = new POI(
+                    "Generovaný POI " + (pois.size() + 1),
+                    "Automaticky vygenerovaný bod záujmu.",
+                    latitude,
+                    longitude,
+                    "Testovacia adresa " + (pois.size() + 1)
+            );
+
+            addPOI(poi);
+        }
     }
 
     public boolean updatePOI(
@@ -100,6 +144,49 @@ public class POIService {
         );
     }
 
+    public List<POI> findByNameInRectangle(
+            String searchName,
+            double minLongitude,
+            double minLatitude,
+            double maxLongitude,
+            double maxLatitude) {
+
+        if (searchName == null || searchName.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Vyhľadávaný názov nesmie byť prázdny."
+            );
+        }
+
+        List<POI> candidates = findInRectangle(
+                minLongitude,
+                minLatitude,
+                maxLongitude,
+                maxLatitude
+        );
+
+        String normalizedSearch = normalizeText(searchName);
+        List<POI> result = new ArrayList<>();
+
+        for (POI poi : candidates) {
+            String normalizedName = normalizeText(poi.getName());
+
+            if (normalizedName.contains(normalizedSearch)) {
+                result.add(poi);
+            }
+        }
+
+        return result;
+    }
+
+    private String normalizeText(String text) {
+        String normalized = Normalizer.normalize(
+                text.toLowerCase(Locale.ROOT),
+                Normalizer.Form.NFD
+        );
+
+        return normalized.replaceAll("\\p{M}", "");
+    }
+
     public List<POI> findAtPosition(double latitude, double longitude) {
         validateCoordinates(latitude, longitude);
 
@@ -142,14 +229,18 @@ public class POIService {
         List<POI> candidates = new ArrayList<>();
 
         if (longitudeDelta >= 180) {
+
             candidates.addAll(queryRectangle(
                     -180, minLatitude, 180, maxLatitude
             ));
+
         } else {
+
             double minLongitude = longitude - longitudeDelta;
             double maxLongitude = longitude + longitudeDelta;
 
             if (minLongitude < -180) {
+
                 candidates.addAll(queryRectangle(
                         minLongitude + 360, minLatitude, 180, maxLatitude
                 ));
@@ -159,6 +250,7 @@ public class POIService {
                 ));
 
             } else if (maxLongitude > 180) {
+
                 candidates.addAll(queryRectangle(
                         minLongitude, minLatitude, 180, maxLatitude
                 ));
@@ -168,6 +260,7 @@ public class POIService {
                 ));
 
             } else {
+
                 candidates.addAll(queryRectangle(
                         minLongitude, minLatitude, maxLongitude, maxLatitude
                 ));
@@ -183,6 +276,7 @@ public class POIService {
         List<POI> result = new ArrayList<>();
 
         for (POI poi : uniqueCandidates.values()) {
+
             double distance = calculateDistance(
                     latitude,
                     longitude,
@@ -216,6 +310,9 @@ public class POIService {
                 * Math.sin(longitudeDifference / 2)
                 * Math.sin(longitudeDifference / 2);
 
+        // Ochrana pred drobnou numerickou odchýlkou.
+        a = Math.max(0, Math.min(1, a));
+
         double c = 2 * Math.atan2(
                 Math.sqrt(a),
                 Math.sqrt(1 - a)
@@ -247,6 +344,7 @@ public class POIService {
     }
 
     private void validateCoordinates(double latitude, double longitude) {
+
         if (!Double.isFinite(latitude)
                 || !Double.isFinite(longitude)
                 || latitude < -90
@@ -259,6 +357,7 @@ public class POIService {
     }
 
     public boolean deletePOI(String id) {
+
         boolean removed = pois.removeIf(
                 poi -> poi.getId().equals(id)
         );
@@ -271,6 +370,7 @@ public class POIService {
     }
 
     public POI findById(String id) {
+
         for (POI poi : pois) {
             if (poi.getId().equals(id)) {
                 return poi;
@@ -281,6 +381,7 @@ public class POIService {
     }
 
     public void changeTreeType(TreeType type) {
+
         if (type == null) {
             throw new IllegalArgumentException("Typ stromu nesmie byť null.");
         }
@@ -290,6 +391,7 @@ public class POIService {
     }
 
     private void rebuildTree() {
+
         spatialTree = SpatialTreeFactory.create(currentTreeType);
 
         for (POI poi : pois) {
@@ -298,6 +400,7 @@ public class POIService {
     }
 
     private void insertIntoTree(POI poi) {
+
         spatialTree.insert(
                 new Point<>(
                         poi.getLongitude(),

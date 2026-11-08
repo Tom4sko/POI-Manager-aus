@@ -22,8 +22,28 @@ public class MainWindow extends JFrame {
     private JButton editButton;
     private JButton deleteButton;
     private JButton refreshButton;
+    private JButton generateButton;
+    private JButton deleteAllButton;
     private JButton loadButton;
     private JButton saveButton;
+    private JButton benchmarkButton;
+
+    private JButton searchPositionButton;
+    private JButton searchRadiusButton;
+    private JButton searchNameButton;
+
+    private JTextField positionLatitudeField;
+    private JTextField positionLongitudeField;
+
+    private JTextField radiusLatitudeField;
+    private JTextField radiusLongitudeField;
+    private JTextField radiusField;
+
+    private JTextField searchNameField;
+    private JTextField minLatitudeField;
+    private JTextField maxLatitudeField;
+    private JTextField minLongitudeField;
+    private JTextField maxLongitudeField;
 
     private JLabel statusLabel;
 
@@ -64,10 +84,10 @@ public class MainWindow extends JFrame {
         JPanel titlePanel = new JPanel();
         titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.Y_AXIS));
         titlePanel.setOpaque(false);
-
         titlePanel.add(title);
 
         structureSelector = new JComboBox<>(TreeType.values());
+
         structureSelector.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(
@@ -98,6 +118,7 @@ public class MainWindow extends JFrame {
 
         loadButton = new JButton("Načítať CSV");
         saveButton = new JButton("Uložiť");
+        benchmarkButton = new JButton("Benchmark");
 
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         controls.setOpaque(false);
@@ -106,6 +127,7 @@ public class MainWindow extends JFrame {
         controls.add(structureSelector);
         controls.add(loadButton);
         controls.add(saveButton);
+        controls.add(benchmarkButton);
 
         header.add(titlePanel, BorderLayout.WEST);
         header.add(controls, BorderLayout.EAST);
@@ -129,7 +151,9 @@ public class MainWindow extends JFrame {
         addButton = createSidebarButton("Pridať POI");
         editButton = createSidebarButton("Upraviť POI");
         deleteButton = createSidebarButton("Vymazať POI");
-        refreshButton = createSidebarButton("Obnoviť zoznam");
+        refreshButton = createSidebarButton("Zobraziť všetky");
+        generateButton = createSidebarButton("Generovať POI");
+        deleteAllButton = createSidebarButton("Vymazať všetko");
 
         sidebar.add(addButton);
         sidebar.add(Box.createVerticalStrut(10));
@@ -141,6 +165,12 @@ public class MainWindow extends JFrame {
         sidebar.add(Box.createVerticalStrut(10));
 
         sidebar.add(refreshButton);
+        sidebar.add(Box.createVerticalStrut(10));
+
+        sidebar.add(generateButton);
+        sidebar.add(Box.createVerticalStrut(10));
+
+        sidebar.add(deleteAllButton);
 
         return sidebar;
     }
@@ -167,6 +197,8 @@ public class MainWindow extends JFrame {
         content.setBorder(
                 BorderFactory.createEmptyBorder(15, 15, 15, 15)
         );
+
+        content.add(createSearchPanel(), BorderLayout.NORTH);
 
         String[] columns = {
                 "ID",
@@ -206,9 +238,7 @@ public class MainWindow extends JFrame {
         JScrollPane tableScroll = new JScrollPane(table);
 
         tableScroll.setBorder(
-                BorderFactory.createTitledBorder(
-                        "Evidované body záujmu"
-                )
+                BorderFactory.createTitledBorder("Evidované body záujmu")
         );
 
         mapPanel = new MapPanel();
@@ -229,6 +259,73 @@ public class MainWindow extends JFrame {
         content.add(splitPane, BorderLayout.CENTER);
 
         return content;
+    }
+
+    private JPanel createSearchPanel() {
+
+        JTabbedPane tabs = new JTabbedPane();
+
+        JPanel positionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        positionLatitudeField = new JTextField(9);
+        positionLongitudeField = new JTextField(9);
+        searchPositionButton = new JButton("Vyhľadať");
+
+        positionPanel.add(new JLabel("Latitude:"));
+        positionPanel.add(positionLatitudeField);
+        positionPanel.add(new JLabel("Longitude:"));
+        positionPanel.add(positionLongitudeField);
+        positionPanel.add(searchPositionButton);
+
+        tabs.addTab("Presná pozícia", positionPanel);
+
+        JPanel radiusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        radiusLatitudeField = new JTextField(8);
+        radiusLongitudeField = new JTextField(8);
+        radiusField = new JTextField(8);
+        searchRadiusButton = new JButton("Vyhľadať");
+
+        radiusPanel.add(new JLabel("Latitude:"));
+        radiusPanel.add(radiusLatitudeField);
+        radiusPanel.add(new JLabel("Longitude:"));
+        radiusPanel.add(radiusLongitudeField);
+        radiusPanel.add(new JLabel("Polomer (m):"));
+        radiusPanel.add(radiusField);
+        radiusPanel.add(searchRadiusButton);
+
+        tabs.addTab("Podľa polomeru", radiusPanel);
+
+        JPanel rectanglePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        searchNameField = new JTextField(10);
+        minLatitudeField = new JTextField(7);
+        maxLatitudeField = new JTextField(7);
+        minLongitudeField = new JTextField(7);
+        maxLongitudeField = new JTextField(7);
+        searchNameButton = new JButton("Vyhľadať");
+
+        rectanglePanel.add(new JLabel("Názov:"));
+        rectanglePanel.add(searchNameField);
+        rectanglePanel.add(new JLabel("Min. lat:"));
+        rectanglePanel.add(minLatitudeField);
+        rectanglePanel.add(new JLabel("Max. lat:"));
+        rectanglePanel.add(maxLatitudeField);
+        rectanglePanel.add(new JLabel("Min. lon:"));
+        rectanglePanel.add(minLongitudeField);
+        rectanglePanel.add(new JLabel("Max. lon:"));
+        rectanglePanel.add(maxLongitudeField);
+        rectanglePanel.add(searchNameButton);
+
+        tabs.addTab("Názov v obdĺžniku", rectanglePanel);
+
+        JPanel searchContainer = new JPanel(new BorderLayout());
+        searchContainer.setBorder(
+                BorderFactory.createTitledBorder("Priestorové vyhľadávanie")
+        );
+        searchContainer.add(tabs, BorderLayout.CENTER);
+
+        return searchContainer;
     }
 
     private JPanel createStatusBar() {
@@ -305,12 +402,76 @@ public class MainWindow extends JFrame {
         return refreshButton;
     }
 
+    public JButton getGenerateButton() {
+        return generateButton;
+    }
+
+    public JButton getDeleteAllButton() {
+        return deleteAllButton;
+    }
+
     public JButton getLoadButton() {
         return loadButton;
     }
 
     public JButton getSaveButton() {
         return saveButton;
+    }
+
+    public JButton getBenchmarkButton() {
+        return benchmarkButton;
+    }
+
+    public JButton getSearchPositionButton() {
+        return searchPositionButton;
+    }
+
+    public JButton getSearchRadiusButton() {
+        return searchRadiusButton;
+    }
+
+    public JButton getSearchNameButton() {
+        return searchNameButton;
+    }
+
+    public JTextField getPositionLatitudeField() {
+        return positionLatitudeField;
+    }
+
+    public JTextField getPositionLongitudeField() {
+        return positionLongitudeField;
+    }
+
+    public JTextField getRadiusLatitudeField() {
+        return radiusLatitudeField;
+    }
+
+    public JTextField getRadiusLongitudeField() {
+        return radiusLongitudeField;
+    }
+
+    public JTextField getRadiusField() {
+        return radiusField;
+    }
+
+    public JTextField getSearchNameField() {
+        return searchNameField;
+    }
+
+    public JTextField getMinLatitudeField() {
+        return minLatitudeField;
+    }
+
+    public JTextField getMaxLatitudeField() {
+        return maxLatitudeField;
+    }
+
+    public JTextField getMinLongitudeField() {
+        return minLongitudeField;
+    }
+
+    public JTextField getMaxLongitudeField() {
+        return maxLongitudeField;
     }
 
     public JTable getTable() {
